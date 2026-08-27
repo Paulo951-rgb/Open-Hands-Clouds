@@ -51,11 +51,29 @@ import {
   applyColorTheme,
   readPersistedColorTheme,
 } from "#/themes/color-themes";
+import { useFlushLocalCacheOnBackground } from "#/hooks/use-conversation-local-cache";
+import { pruneExpiredConversations } from "#/lib/local-conversation-cache";
+import { useCachedConversationGate } from "#/hooks/use-cached-conversation-gate";
 
 /** Applies the persisted color-theme palette to document.body on mount. */
 function ColorThemeApplier() {
   React.useEffect(() => {
     applyColorTheme(readPersistedColorTheme());
+  }, []);
+  return null;
+}
+
+/**
+ * Installs the app-wide safety net for the local conversation cache: a
+ * background/teardown flush (so a killed tab loses at most a few hundred ms
+ * of streamed content) and a one-time prune of entries past the 5-day TTL.
+ * Lives at the root so it runs once regardless of which conversation (if
+ * any) is currently mounted.
+ */
+function LocalCacheMaintenance() {
+  useFlushLocalCacheOnBackground();
+  React.useEffect(() => {
+    void pruneExpiredConversations();
   }, []);
   return null;
 }
@@ -101,6 +119,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body data-agent-server-ui="" className="m-0">
         <AgentServerUIRoot contentClassName="min-h-screen">
           <ColorThemeApplier />
+          <LocalCacheMaintenance />
           {children}
           <Toaster toastOptions={TOAST_OPTIONS} />
           <div id="modal-portal-exit" />
@@ -242,6 +261,17 @@ export default function App() {
   const hasRegisteredKey = Boolean(getEffectiveLocalBackend()?.apiKey);
   const authMissing = bakedKeyMissing && !hasRegisteredKey;
   const { active } = useActiveBackendContext();
+  // Resilience layer: when we're returning to a conversation we already
+  // have a fresh local mirror of (src/lib/local-conversation-cache.ts), let
+  // it render immediately instead of sitting behind the backend health
+  // probe below — for a bounded grace window only (see
+  // use-cached-conversation-gate.ts). Every other gate in this component
+  // (onboarding, auth, locked-Cloud host) still runs first and is
+  // completely unaffected.
+  const rootLocation = useLocation();
+  const canShowCachedConversationOptimistically = useCachedConversationGate(
+    rootLocation.pathname,
+  );
   // In locked-to-Cloud mode the only valid backend is a Cloud backend whose
   // host matches the configured locked Cloud host. A missing backend, a stale
   // Local backend (e.g. one persisted from a previous non-locked session), or
@@ -360,6 +390,14 @@ export default function App() {
   }
 
   if (config.isPending || config.isLoading) {
+    if (canShowCachedConversationOptimistically) {
+      return (
+        <>
+          <Outlet />
+          <TelemetryConsentBanner />
+        </>
+      );
+    }
     return <AgentServerBootstrapLoading />;
   }
 
@@ -368,6 +406,14 @@ export default function App() {
     activeCloudUnreachable ||
     isAgentServerUnavailableError(config.error)
   ) {
+    if (canShowCachedConversationOptimistically) {
+      return (
+        <>
+          <Outlet />
+          <TelemetryConsentBanner />
+        </>
+      );
+    }
     return <MissingAgentServerScreen />;
   }
 

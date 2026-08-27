@@ -15,6 +15,7 @@ import { CLOUD_BACKEND_API_KEY_OR_NETWORK_ERROR } from "#/hooks/query/use-backen
 import type { Backend } from "#/api/backend-registry/types";
 import { ActiveBackendProvider } from "#/contexts/active-backend-context";
 import { ONBOARDING_COMPLETED_STORAGE_KEY } from "#/components/features/onboarding/use-onboarding-completion";
+import { __resetLocalConversationCacheForTests } from "#/lib/local-conversation-cache";
 import App from "#/root";
 
 // The recovery screen lazy-loads the Manage Backends modal; stub it so the test
@@ -31,7 +32,7 @@ const cloudBackend: Backend = {
   kind: "cloud",
 };
 
-function renderApp() {
+function renderApp(initialPath = "/") {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
@@ -42,10 +43,14 @@ function renderApp() {
         Component: App,
         children: [
           { index: true, element: <div data-testid="app-outlet-content" /> },
+          {
+            path: "conversations/:id",
+            element: <div data-testid="app-outlet-content" />,
+          },
         ],
       },
     ],
-    { initialEntries: ["/"] },
+    { initialEntries: [initialPath] },
   );
 
   return render(
@@ -84,6 +89,87 @@ describe("App root — active cloud backend connectivity gate", () => {
     }
 
     renderApp();
+
+    expect(
+      await screen.findByTestId("agent-server-onboarding-screen"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("app-outlet-content")).not.toBeInTheDocument();
+  });
+});
+
+describe("App root — optimistic render of a locally-cached conversation", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    __resetHealthStoreForTests();
+    __resetLocalConversationCacheForTests();
+    localStorage.setItem(ONBOARDING_COMPLETED_STORAGE_KEY, "1");
+    setRegisteredBackends([cloudBackend]);
+    setActiveSelection({ backendId: cloudBackend.id });
+  });
+
+  afterEach(() => {
+    setActiveSelection(null);
+    setRegisteredBackends([]);
+    localStorage.clear();
+    __resetHealthStoreForTests();
+    __resetLocalConversationCacheForTests();
+  });
+
+  it("still shows the recovery screen for an unreachable backend when there is NO local cache for the route", async () => {
+    for (let i = 0; i < MAX_CONSECUTIVE_FAILURES; i += 1) {
+      recordBackendFailure(
+        cloudBackend.id,
+        new Error(CLOUD_BACKEND_API_KEY_OR_NETWORK_ERROR),
+      );
+    }
+
+    renderApp("/conversations/convo-without-cache");
+
+    expect(
+      await screen.findByTestId("agent-server-onboarding-screen"),
+    ).toBeInTheDocument();
+    expect(screen.queryByTestId("app-outlet-content")).not.toBeInTheDocument();
+  });
+
+  it("optimistically renders a conversation route the user has a fresh local mirror for, instead of the recovery screen", async () => {
+    for (let i = 0; i < MAX_CONSECUTIVE_FAILURES; i += 1) {
+      recordBackendFailure(
+        cloudBackend.id,
+        new Error(CLOUD_BACKEND_API_KEY_OR_NETWORK_ERROR),
+      );
+    }
+
+    // Simulate a conversation we've already rendered locally in a previous
+    // session, per the synchronous marker written by
+    // src/lib/local-conversation-cache.ts.
+    localStorage.setItem(
+      "oh:locally-cached-conversation-ids",
+      JSON.stringify({ "cached-convo": Date.now() }),
+    );
+
+    renderApp("/conversations/cached-convo");
+
+    expect(await screen.findByTestId("app-outlet-content")).toBeInTheDocument();
+    expect(
+      screen.queryByTestId("agent-server-onboarding-screen"),
+    ).not.toBeInTheDocument();
+  });
+
+  it("does not bypass the recovery screen for a stale (>5 day) local cache marker", async () => {
+    for (let i = 0; i < MAX_CONSECUTIVE_FAILURES; i += 1) {
+      recordBackendFailure(
+        cloudBackend.id,
+        new Error(CLOUD_BACKEND_API_KEY_OR_NETWORK_ERROR),
+      );
+    }
+
+    const sixDaysAgo = Date.now() - 6 * 24 * 60 * 60 * 1000;
+    localStorage.setItem(
+      "oh:locally-cached-conversation-ids",
+      JSON.stringify({ "stale-convo": sixDaysAgo }),
+    );
+
+    renderApp("/conversations/stale-convo");
 
     expect(
       await screen.findByTestId("agent-server-onboarding-screen"),

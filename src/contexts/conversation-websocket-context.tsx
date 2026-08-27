@@ -65,6 +65,10 @@ import { trackError } from "#/utils/error-handler";
 import { useReadConversationFile } from "#/hooks/mutation/use-read-conversation-file";
 import useMetricsStore, { type MetricsState } from "#/stores/metrics-store";
 import { useConversationHistory } from "#/hooks/query/use-conversation-history";
+import {
+  useHydrateConversationFromLocalCache,
+  usePersistConversationToLocalCache,
+} from "#/hooks/use-conversation-local-cache";
 import { setConversationState } from "#/utils/conversation-local-storage";
 import {
   recordModelSwitchMessage,
@@ -150,6 +154,14 @@ export function ConversationWebSocketProvider({
   const clearEventsForConversation = useEventStore(
     (state) => state.clearEventsForConversation,
   );
+
+  // Local persistence layer (IndexedDB mirror): seeds the store from the
+  // last-known local copy of this conversation so messages already render
+  // before the network responds, and keeps that copy up to date as new
+  // events (including in-progress streaming) arrive. Purely additive — see
+  // src/lib/local-conversation-cache.ts for the safety invariants.
+  useHydrateConversationFromLocalCache(conversationId);
+  usePersistConversationToLocalCache();
   const { setErrorMessage, removeErrorMessage, clearConnectionError } =
     useErrorMessageStore();
   const consumeMatchingPendingMessage = useOptimisticUserMessageStore(

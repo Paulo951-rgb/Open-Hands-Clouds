@@ -45,6 +45,19 @@ Agent Canvas runs the open source OpenHands agent out-of-the-box, but can use an
 | [**Bring your own model**](https://docs.openhands.dev/openhands/usage/settings/llm-settings#llm-profiles)            | Use with any LLM                                                                                                                         |
 | [**Use with any agent**](https://docs.openhands.dev/openhands/usage/agent-canvas/acp-agents)                         | Use with OpenHands, Claude Code, Codex, Gemini, or any agent with Agent-Client Protocol (ACP).                                           |
 
+> **Personal fork note.** This is a personal fork of Agent Canvas / OpenHands. It keeps the
+> upstream project essentially identical (same UI, design, model provider, agent, tools,
+> terminal, conversations, streaming, GitHub integration, and the Agent Server / OpenHands
+> Cloud backends) and adds a **local persistence & resilience layer only**:
+> a per-device IndexedDB mirror of recent conversation events.
+>
+> On return to a conversation, the already-known local copy renders immediately while the
+> backend reconnects, ongoing streaming is flushed progressively (a debounced save, so a
+> killed tab loses only a few hundred ms of content), and the mirror is merged / re-validated
+> against the Agent Server's authoritative REST history + WebSocket replay. The local mirror
+> expires after 5 days and is never a source of truth. It changes nothing about the AI model,
+> the cloud backends, authentication, or any other feature.
+
 If you have questions or feedback, please open a GitHub issue or join the [#proj-agent-canvas channel in Slack](https://openhands.dev/joinslack).
 
 ## Quickstart
