@@ -1,0 +1,1 @@
+import{t as e}from"./utils-C_d816l1.js";var t=e(`text-xl leading-6 -tracking-[0.01em] font-medium text-[var(--oh-modal-title-foreground)]`),n=e(`text-sm font-medium text-[var(--oh-modal-title-foreground)]`),r=e(`text-lg font-medium text-[var(--oh-modal-title-foreground)]`),i=r;export{n as i,r as n,i as r,t};

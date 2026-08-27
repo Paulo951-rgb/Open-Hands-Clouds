@@ -1,0 +1,1 @@
+import{D as e}from"./vendor~entry.client~root~root-layout~index-home~home~conversation-panel~conversation~launch~kepq2zme-DlClnyKq.js";var t=e(`chevron-down`,[[`path`,{d:`m6 9 6 6 6-6`,key:`qrunsl`}]]);export{t};

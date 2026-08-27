@@ -1,0 +1,1 @@
+var e=`canvas_ui`,t=`canvas_ui_control`,n=`ClientAction_${t}`,r=`launch_child_conversation`,i=`ClientAction_${r}`,a=`[child-conversation] `,o=[`local`,`cloud`],s=[`worktree`,`shared`],c=`1.37.1`;export{r as a,t as c,i,e as l,a as n,c as o,o as r,n as s,s as t};

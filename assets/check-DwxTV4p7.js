@@ -1,0 +1,1 @@
+import{D as e}from"./vendor~entry.client~root~root-layout~index-home~home~conversation-panel~conversation~launch~kepq2zme-DlClnyKq.js";var t=e(`check`,[[`path`,{d:`M20 6 9 17l-5-5`,key:`1gmf2c`}]]);export{t};

@@ -1,0 +1,1 @@
+var e=1;function t(t){let{scrollLeft:n,scrollWidth:r,clientWidth:i}=t,a=r-i,o=a>e;return{left:o&&n>e,right:o&&n<a-e}}export{t};
