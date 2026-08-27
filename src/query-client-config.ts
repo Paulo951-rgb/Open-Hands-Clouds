@@ -4,6 +4,7 @@ import i18n from "#/i18n";
 import { I18nKey } from "./i18n/declaration";
 import { retrieveAxiosErrorMessage } from "./utils/retrieve-axios-error-message";
 import { displayErrorToast } from "./utils/custom-toast-handlers";
+import { shouldSuppressTransientConnectionErrorToast } from "./utils/transient-error";
 import { getActiveBackend } from "#/api/backend-registry/active-store";
 import { recordBackendSuccess } from "#/api/backend-registry/health-store";
 
@@ -48,7 +49,14 @@ export const createAgentServerQueryClient = () => {
         const disableToast =
           query.meta?.disableToast ?? query.options.meta?.disableToast;
 
-        if (!disableToast && !isActiveCloudBackendAuthError(error)) {
+        const suppressTransient =
+          shouldSuppressTransientConnectionErrorToast(error);
+
+        if (
+          !disableToast &&
+          !suppressTransient &&
+          !isActiveCloudBackendAuthError(error)
+        ) {
           const errorMessage = retrieveAxiosErrorMessage(error);
 
           if (!shownErrors.has(errorMessage || "")) {
@@ -69,7 +77,14 @@ export const createAgentServerQueryClient = () => {
         const disableToast =
           mutation?.meta?.disableToast ?? mutation?.options.meta?.disableToast;
 
-        if (!disableToast && !isActiveCloudBackendAuthError(error)) {
+        const suppressTransient =
+          shouldSuppressTransientConnectionErrorToast(error);
+
+        if (
+          !disableToast &&
+          !suppressTransient &&
+          !isActiveCloudBackendAuthError(error)
+        ) {
           const message = retrieveAxiosErrorMessage(error);
           displayErrorToast(message || i18n.t(I18nKey.ERROR$GENERIC));
         }
