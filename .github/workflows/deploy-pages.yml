@@ -1,0 +1,57 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Static SPA served from the repo subpath on GitHub Pages.
+      - run: npm run make-i18n
+      - name: Build
+        env:
+          VITE_BASE_PATH: /Open-Hands-Clouds/
+        run: npm run build
+
+      # SPA fallback: GitHub Pages can't rewrite deep links, so any unknown
+      # path (e.g. /conversations/abc) is served this file while the browser
+      # URL is preserved — React Router then renders the right route.
+      - name: Add SPA 404 fallback
+        run: cp build/index.html build/404.html
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
